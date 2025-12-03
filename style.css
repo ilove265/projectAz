@@ -1,0 +1,41 @@
+#left{
+    text-align: left;
+}
+.bar{
+    background-color: rgb(187, 230, 230);
+    margin: 1rem auto;    
+    display: flex;
+    align-items: center;
+    border: 1px solid;
+    border-radius: 10px;
+    width: 75%;
+    height: 5rem;
+
+}
+.bar img{
+    margin: 10px;
+    width: 4rem; 
+    height: 4rem; 
+    border-radius: 25%
+
+}
+.bar h2{
+    border: 1px solid black;   
+    flex: 1;
+    margin: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+    
+}
+.bar h2:hover{
+    background-color: rgb(110, 174, 235);
+}
+.info{
+    background-color: rgb(219, 219, 219);
+    width: 80%;
+    margin: 1rem auto;
+    text-align: center;
+}
