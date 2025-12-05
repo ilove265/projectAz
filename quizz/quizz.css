@@ -68,41 +68,45 @@
   }
   
   /* Menu container */
-.menu {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin: 20px 0;
+  .menu {
+    
+    width: 70vw;
+    margin: 40px auto;
+    border: 2px solid #00bcd4;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
   }
   
-  /* Tab style */
+  /* Tabs nằm sát trên khung menu */
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid #00bcd4;
+  }
+  
   .tab {
-    padding: 10px 20px;
-    background: #00bcd4;
-    color: #fff;
-    border-radius: 8px 8px 0 0;
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
     cursor: pointer;
     font-weight: bold;
+    background: #e0f7fa;
     transition: background 0.3s;
   }
   
   .tab:hover {
-    background: #00796b;
+    background: #b2ebf2;
   }
   
-  /* Tab active */
   .tab.active {
-    background: #004d40;
+    background: #00bcd4;
+    color: #fff;
   }
   
-  /* Nội dung tab */
+  /* Nội dung bên trong khung menu */
   .tab-content {
-    border: 2px solid #00bcd4;
-    border-radius: 0 8px 8px 8px;
     padding: 20px;
-    background: #fff;
-    max-width: 600px;
-    margin: 0 auto;
+    min-height: 300px; /* làm khung to hơn */
   }
   
   .content {
@@ -112,5 +116,6 @@
   .content.active {
     display: block;
   }
+  
   
  
