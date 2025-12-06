@@ -1,42 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Document</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>QuizzLab Dashboard</title>
 </head>
 <body>
+
     <div class="header bar">
-        <img src="img/Rei.webp" alt="logo">
-        <h1>quizzlab</h1>
+        <div class="logo-area">
+            <img src="img/Rei.webp" alt="logo" onerror="this.src='https://placehold.co/40x40'"> 
+            <h1>QuizzLab</h1>
+        </div>
         <div class="acc">
-            <p>box</p>
+            <p>Tài khoản</p>
         </div>
-
     </div>
 
-
-    <div class="tilte">
-            <h1>Welcome</h1>
+    <div class="title-section">
+        <h1>Welcome Back!</h1>
+        <p>Hôm nay bạn muốn luyện tập gì?</p>
     </div>
 
-    <div class="box option">
-        <div onclick="window.location.href='quizz/quizz.html'" class="item">
-                <h2>Quizz</h2>
-        </div>
-    <div onclick="window.location.href='Test/flcard.html'" class="item">
-                <h2>Flash card</h2>
-        </div>
-    <div onclick="window.location.href='Test/pvp.html'" class="item">
-                <h2>PvP</h2>
+    <div class="container">
+        
+        <div class="activity-card" onclick="window.location.href='./quizz/quizz.html'">
+            <div class="card-icon">
+                <img src="img/quiz-icon.png" alt="Quiz" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3407/3407024.png'">
             </div>
-    <div onclick="window.location.href='Test/idk.html'" class="item">
-                <h2>idk</h2>
+            <div class="card-content">
+                <h2>QUIZ</h2>
+                <p>Trắc nghiệm kiến thức tổng hợp theo từng chủ đề đa dạng.</p>
+            </div>
+            <button>Làm ngay</button>
         </div>
-    </div>
-    
 
+        <div class="activity-card" onclick="window.location.href='Test/flcard.html'">
+            <div class="card-icon">
+                <img src="img/flashcard-icon.png" alt="Flashcard" onerror="this.src='https://cdn-icons-png.flaticon.com/512/10606/10606037.png'">
+            </div>
+            <div class="card-content">
+                <h2>Flash Card</h2>
+                <p>Ôn tập từ vựng và ghi nhớ nhanh qua các thẻ bài lật.</p>
+            </div>
+            <button>Học ngay</button>
+        </div>
+
+        <div class="activity-card" onclick="window.location.href='Test/pvp.html'">
+            <div class="card-icon">
+                <img src="img/pvp-icon.png" alt="PvP" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2483/2483162.png'">
+            </div>
+            <div class="card-content">
+                <h2>PvP Battle</h2>
+                <p>Thách đấu trực tiếp với bạn bè xem ai điểm cao hơn.</p>
+            </div>
+            <button>Thách đấu</button>
+        </div>
+
+        <div class="activity-card" onclick="window.location.href='Test/idk.html'">
+            <div class="card-icon">
+                <img src="img/idk-icon.png" alt="Other" onerror="this.src='https://cdn-icons-png.flaticon.com/512/4213/4213642.png'">
+            </div>
+            <div class="card-content">
+                <h2>Khám Phá</h2>
+                <p>Các tính năng mở rộng và minigame thú vị khác.</p>
+            </div>
+            <button>Xem thêm</button>
+        </div>
+
+    </div>
 
 </body>
 </html>
