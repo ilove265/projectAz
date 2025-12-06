@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../style.css"> <link rel="stylesheet" href="quiz.css"> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>QuizzLab - Vùng Quiz</title>
+</head>
+<body>
+
+    <div class="header bar">
+        <div class="logo-area" onclick="window.location.href='../index.html'" style="cursor: pointer;">
+            <img src="../img/Rei.webp" alt="logo" onerror="this.src='https://placehold.co/40x40'"> 
+            <h1>QuizzLab</h1>
+        </div>
+        <div class="acc">
+            <p>Tài khoản</p>
+        </div>
+    </div>
+    
+    <button class="back-home-minimal" onclick="window.location.href='../index.html'">
+        &larr; Trang chủ
+    </button>
+    
+    <div class="title-section">
+        <h1>Vùng Thử Thách 🧠</h1>
+        <p>Chọn một bài Quiz có sẵn hoặc tự tạo bài của riêng bạn!</p>
+    </div>
+
+    <div class="quiz-container">
+        
+        <div class="section create-quiz-options">
+            <h2>Chọn Cách Thức Tạo Quiz</h2>
+            <div class="options-grid">
+
+                <div class="option-card primary" onclick="openCreateQuizEditor()">
+                    <div class="card-icon">
+                        <img src="https://cdn-icons-png.flaticon.com/512/3208/3208940.png" alt="Tự Soạn" style="width: 45px; height: 45px;">
+                    </div>
+                    <div class="card-content">
+                        <h3>TỰ SOẠN / TRÌNH CHỈNH SỬ</h3>
+                        <p>Soạn bài Quiz hoàn toàn thủ công với tính năng Xem trước Trực tiếp.</p>
+                    </div>
+                    <span class="badge">Nên dùng</span>
+                </div>
+                
+                <div class="option-card secondary">
+                    <div class="card-icon">
+                        <img src="https://cdn-icons-png.flaticon.com/512/2983/2983582.png" alt="Tải File" style="width: 45px; height: 45px;">
+                    </div>
+                    <div class="card-content">
+                        <h3>TẠO TỪ FILE</h3>
+                        <p>Tải lên file văn bản (Docx, PDF) hoặc bảng tính (Excel) để hệ thống tự động nhận diện.</p>
+                    </div>
+                    <button class="coming-soon">Sắp ra mắt</button>
+                </div>
+
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="section available-quizzes">
+            <h2>Quiz Có Sẵn</h2>
+            <div id="quiz-list" class="card-list">
+                <p id="loading-text">Đang tải danh sách Quiz...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="create-quiz-editor-modal" class="modal">
+        <div class="modal-content split-screen">
+            <span class="close-btn" onclick="closeCreateQuizEditor()">&times;</span>
+            
+            <div class="editor-column quiz-preview-column">
+                <h3>Xem trước Quiz 💡</h3>
+                
+                <div id="quiz-preview-container" class="preview-card-wrapper">
+                    <p class="empty-state">Bắt đầu gõ để xem câu hỏi hiển thị tại đây.</p>
+                </div>
+            </div>
+
+            <div class="editor-column text-editor-column">
+                <h2>✍️ Soạn Quiz Nhanh</h2>
+
+                <form id="create-quiz-form">
+                    <div class="form-header-group">
+                        <input type="text" id="quiz-title" required placeholder="Tên Quiz: Ví dụ Khoa học 8, Chương 1">
+                        <input type="text" id="quiz-topic" required placeholder="Chủ đề: Ví dụ Vật Lý, Sinh học">
+                    </div>
+
+                    <div class="editor-area">
+                        <label for="quiz-text-input">Nhập Câu Hỏi và Đáp Án:</label>
+                        <textarea id="quiz-text-input" placeholder="Nhập văn bản Quiz theo định dạng..." rows="25" required></textarea>
+                    </div>
+
+                    <div class="format-guide minimal">
+                        <h4>📝 Cú pháp:</h4>
+                        <ul>
+                            <li>**câu n**: Bắt đầu câu hỏi (Ví dụ: `câu 1`).</li>
+                            <li>**A. B. C. D.** hoặc **a) b) c) d)**: Nhập các Đáp án (Gõ `A.` hoặc `a)` rồi **Enter** sẽ tự động gợi ý).</li>
+                            <li>**Đáp án đúng**: Thêm dấu **`*`** ngay sau dấu chấm/ngoặc cuối cùng của đáp án đúng (Ví dụ: `A. Hà Nội.*`).</li>
+                        </ul>
+                    </div>
+                    
+                    <p id="error-message" class="error-message" style="display: none;">Vui lòng kiểm tra lại định dạng nhập liệu!</p>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="submit-quiz-btn">LƯU & XUẤT BẢN QUIZ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="quiz.js"></script>
+</body>
+</html>
