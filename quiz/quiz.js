@@ -35,27 +35,49 @@ function saveQuizzes(quizzes) {
     localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
 }
 
-// 2. Hàm render một Quiz Card (Giữ nguyên)
+// 2. Hàm render một Quiz Card (CẬP NHẬT để thêm nút Xóa)
 function renderQuizCard(quiz) {
     const card = document.createElement('div');
     card.classList.add('quiz-card');
     card.setAttribute('data-id', quiz.id);
 
+    // Kiểm tra xem đây có phải là Quiz tự tạo hay không để thêm nút xóa
+    const isUserCreated = quiz.creator === "Người dùng (Tự tạo)";
+    let deleteButton = '';
+    if (isUserCreated) {
+        deleteButton = `
+            <button class="delete-quiz-btn" onclick="event.stopPropagation(); deleteQuiz(${quiz.id});" 
+                    style="background: #f44336; margin-left: 10px; padding: 8px 12px; border-radius: 8px; border: none; color: white; cursor: pointer; transition: background 0.3s;">
+                Xóa
+            </button>
+        `;
+    }
+
     card.innerHTML = `
-        <h3>${quiz.title}</h3>
-        <p>Chủ đề: <span class="topic">${quiz.topic}</span></p>
-        <p>Số lượng câu: ${quiz.questions}</p>
-        
-        <div class="meta">
-            <span>Tạo bởi: ${quiz.creator}</span>
+        <div onclick="window.location.href='${quiz.link}'" style="cursor: pointer;">
+            <h3>${quiz.title}</h3>
+            <p>Chủ đề: <span class="topic">${quiz.topic}</span></p>
+            <p>Số lượng câu: ${quiz.questions}</p>
+            
+            <div class="meta">
+                <span>Tạo bởi: ${quiz.creator}</span>
+            </div>
         </div>
-        <button onclick="window.location.href='${quiz.link}'">Bắt đầu Quiz</button>
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 10px;">
+            <button onclick="window.location.href='${quiz.link}'" style="flex-grow: 1;">Bắt đầu Quiz</button>
+            ${deleteButton}
+        </div>
     `;
+    
+    // Thêm style hover cho nút xóa (vì không cập nhật quiz.css)
+    card.querySelector('.delete-quiz-btn')?.addEventListener('mouseenter', function(e) { e.target.style.background = '#d32f2f'; });
+    card.querySelector('.delete-quiz-btn')?.addEventListener('mouseleave', function(e) { e.target.style.background = '#f44336'; });
+
 
     document.getElementById('quiz-list').appendChild(card);
 }
 
-// 3. Hàm hiển thị tất cả Quiz (Giữ nguyên)
+// 3. Hàm hiển thị tất cả Quiz
 function loadQuizzes() {
     const quizListContainer = document.getElementById('quiz-list');
     quizListContainer.innerHTML = '';
@@ -71,8 +93,23 @@ function loadQuizzes() {
     quizzes.forEach(quiz => renderQuizCard(quiz));
 }
 
+// --- LOGIC XÓA QUIZ MỚI ---
+function deleteQuiz(id) {
+    if (!confirm("Bạn có chắc chắn muốn xóa Quiz này không? Dữ liệu sẽ bị mất vĩnh viễn.")) {
+        return;
+    }
 
-// --- LOGIC TRÌNH SOẠN THẢO SPLIT-SCREEN ---
+    let quizzes = getQuizzes();
+    // Lọc ra Quiz có ID cần xóa
+    quizzes = quizzes.filter(q => q.id !== id);
+    
+    saveQuizzes(quizzes); // Lưu lại danh sách mới
+    loadQuizzes(); // Tải lại giao diện
+    alert("Quiz đã được xóa thành công!");
+}
+
+
+// --- LOGIC TRÌNH SOẠN THẢO SPLIT-SCREEN (Giữ nguyên phần còn lại) ---
 
 const modal = document.getElementById('create-quiz-editor-modal');
 const form = document.getElementById('create-quiz-form');
@@ -83,7 +120,6 @@ const previewContainer = document.getElementById('quiz-preview-container');
 function openCreateQuizEditor() {
     modal.style.display = 'flex';
     errorMessage.style.display = 'none';
-    // Đặt Textarea về ví dụ mặc định để người dùng biết cách dùng
     quizTextInput.value = "câu 1 Thủ đô của Việt Nam là gì?\nA. Đà Nẵng\nB. TP Hồ Chí Minh\nC. Hà Nội.*\nD. Hải Phòng\n\ncâu 2 Đây là câu đúng/sai?\na) Đúng.*\nb) Sai"; 
     updatePreview();
 }
@@ -97,13 +133,12 @@ function closeCreateQuizEditor() {
 
 /**
  * 4. Hàm phân tích cú pháp văn bản Quiz (Parse Text)
- * Hỗ trợ cú pháp: Câu n, A. B. C. D., a) b) c) d), và dấu * sau dấu chấm cuối câu.
  */
 function parseQuizText(text) {
     const lines = text.split('\n').map(line => line.trim());
     const questions = [];
     let currentQuestion = null;
-    const optionRegex = /^\s*([A-Z]\.|\S\))/; // A. or a)
+    const optionRegex = /^\s*([A-Z]\.|\S\))/; 
 
     for (const line of lines) {
         if (line.length === 0) continue;
@@ -124,31 +159,29 @@ function parseQuizText(text) {
             let isCorrect = false;
 
             // Kiểm tra đáp án đúng bằng dấu *
-            if (optionText.endsWith('*')) { // Dấu * sau dấu chấm/ngoặc
+            if (optionText.endsWith('*')) { 
                 isCorrect = true;
-                optionText = optionText.slice(0, -1); // Xóa dấu *
+                optionText = optionText.slice(0, -1); 
             }
             
             const match = line.match(optionRegex);
-            const prefix = match[1]; // Lấy A. hoặc a)
+            const prefix = match[1]; 
             
             if (!currentQuestion.optionFormat) {
                 currentQuestion.optionFormat = prefix.endsWith('.') ? 'letter_dot' : 'letter_paren';
             }
 
-            // Loại bỏ tiền tố (A., a), ...)
             const optionContent = optionText.replace(prefix, '').trim();
 
             const option = {
                 content: optionContent,
-                prefix: prefix.replace(/[\.\)]$/, ''), // Lấy chữ A hoặc a
+                prefix: prefix.replace(/[\.\)]$/, ''), 
                 isCorrect: isCorrect
             };
 
             currentQuestion.options.push(option);
 
             if (isCorrect) {
-                // Chuyển đổi prefix sang index 0, 1, 2...
                 const index = option.prefix.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
                 currentQuestion.correctAnswer = index;
             }
@@ -169,7 +202,6 @@ function updatePreview() {
     const text = quizTextInput.value;
     const allParsedQuestions = parseQuizText(text);
 
-    // Hiển thị tất cả câu hỏi có đáp án
     const renderableQuestions = (allParsedQuestions || []).filter(q => q.options.length > 0);
 
     renderPreview(renderableQuestions);
@@ -198,12 +230,10 @@ function renderPreview(questionsData) {
         let optionsHtml = '';
         
         q.options.forEach((option, i) => {
-            // Lấy ký tự prefix (A, B, a, b...)
             const prefixChar = option.prefix; 
             const isCorrect = option.isCorrect;
             const correctClass = isCorrect ? 'correct-indicator' : '';
 
-            // Thêm onclick để tương tác
             optionsHtml += `
                 <div class="preview-option ${correctClass}" 
                      data-option-index="${i}" 
@@ -229,7 +259,6 @@ function selectAnswer(questionNumber, selectedPrefix) {
     let questionActive = false;
     let optionFound = false;
     
-    // Biến tạm để lưu nội dung Textarea mới
     const newLines = [];
 
     for (const line of lines) {
@@ -244,15 +273,12 @@ function selectAnswer(questionNumber, selectedPrefix) {
 
         // 2. Xử lý các dòng trong câu hỏi đang hoạt động
         if (questionActive) {
-            let lineIsOption = false;
             const optionRegex = /^\s*([A-Z]\.|\S\))/; 
 
-            // Kiểm tra xem dòng hiện tại có phải là đáp án không
             if (trimmedLine.match(optionRegex)) {
-                 lineIsOption = true;
                  
                  const match = trimmedLine.match(optionRegex);
-                 const prefix = match[1].replace(/[\.\)]$/, ''); // Lấy chữ A hoặc a
+                 const prefix = match[1].replace(/[\.\)]$/, ''); 
 
                  // Xóa dấu * ở tất cả các đáp án cũ
                  if (trimmedLine.endsWith('*')) {
@@ -268,7 +294,6 @@ function selectAnswer(questionNumber, selectedPrefix) {
             
             newLines.push(line.replace(line.trim(), trimmedLine));
             
-            // Nếu gặp câu hỏi mới, dừng xử lý câu hỏi hiện tại
             if (trimmedLine.match(/^câu\s+\d+/i)) {
                 questionActive = false;
             }
@@ -278,7 +303,6 @@ function selectAnswer(questionNumber, selectedPrefix) {
     }
     
     if (optionFound) {
-        // Cập nhật Textarea và Preview
         quizTextInput.value = newLines.join('\n');
         updatePreview();
     }
@@ -287,26 +311,21 @@ function selectAnswer(questionNumber, selectedPrefix) {
 
 // --- AUTO-SUGGEST LOGIC ---
 function autoSuggestOptions(e) {
-    // Chỉ xử lý khi nhấn Enter (hoặc Shift+Enter, nhưng chỉ cần Enter)
     if (e.key !== 'Enter' || e.shiftKey) {
         return;
     }
     
     const start = quizTextInput.selectionStart;
-    const end = quizTextInput.selectionEnd;
     const text = quizTextInput.value;
     const beforeCursor = text.substring(0, start);
     
-    // Tìm dòng ngay trước con trỏ
     const lastNewline = beforeCursor.lastIndexOf('\n');
     const line = beforeCursor.substring(lastNewline + 1);
 
-    // Trì hoãn việc thêm nội dung cho đến sau khi trình duyệt xử lý Enter
     setTimeout(() => {
         let newText = quizTextInput.value;
-        const currentEnd = quizTextInput.selectionEnd; // Vị trí sau khi Enter đã được xử lý
+        const currentEnd = quizTextInput.selectionEnd; 
         
-        // Kiểm tra cú pháp gợi ý A. (Trắc nghiệm)
         if (line.trim().match(/^A\.\s*$/i)) {
             newText = newText.substring(0, currentEnd) + 
                             'B.\nC.\nD.' + 
@@ -314,14 +333,12 @@ function autoSuggestOptions(e) {
             
             quizTextInput.value = newText;
             
-            // Đặt con trỏ về đúng vị trí (sau B.)
             const newCursorPos = currentEnd + 2;
             quizTextInput.selectionStart = newCursorPos;
             quizTextInput.selectionEnd = newCursorPos;
             
             updatePreview();
         }
-        // Kiểm tra cú pháp gợi ý a) (Đúng/Sai/Tuỳ chọn)
         else if (line.trim().match(/^a\)\s*$/i)) {
             newText = newText.substring(0, currentEnd) + 
                             'b)\nc)\nd)' + 
@@ -329,7 +346,6 @@ function autoSuggestOptions(e) {
             
             quizTextInput.value = newText;
 
-            // Đặt con trỏ về đúng vị trí (sau b))
             const newCursorPos = currentEnd + 2;
             quizTextInput.selectionStart = newCursorPos;
             quizTextInput.selectionEnd = newCursorPos;
@@ -339,7 +355,6 @@ function autoSuggestOptions(e) {
     }, 0);
 }
 
-// Thêm sự kiện lắng nghe gõ phím cho autoSuggestOptions
 quizTextInput.addEventListener('keydown', autoSuggestOptions);
 quizTextInput.addEventListener('input', updatePreview);
 
@@ -354,13 +369,11 @@ form.addEventListener('submit', function(e) {
     const topic = document.getElementById('quiz-topic').value;
     const text = quizTextInput.value;
     
-    // Lấy tất cả câu hỏi đã parse
     const allParsedQuestions = parseQuizText(text);
 
-    // Lọc ra các câu hỏi HOÀN CHỈNH để lưu
     const finalQuestionsToSave = (allParsedQuestions || []).filter(q => 
-        (q.optionFormat === 'letter_dot' && q.options.length === 4 && q.correctAnswer !== null) || // Trắc nghiệm 4 đáp án
-        (q.optionFormat === 'letter_paren' && q.options.length >= 2 && q.correctAnswer !== null) // Đúng/Sai (tối thiểu 2 đáp án)
+        (q.optionFormat === 'letter_dot' && q.options.length === 4 && q.correctAnswer !== null) || 
+        (q.optionFormat === 'letter_paren' && q.options.length >= 2 && q.correctAnswer !== null)
     );
 
     if (finalQuestionsToSave.length === 0) {
@@ -381,7 +394,7 @@ form.addEventListener('submit', function(e) {
         questions: finalQuestionsToSave.length,
         creator: "Người dùng (Tự tạo)",
         link: `start-quiz.html?id=${newId}`, 
-        questionsData: finalQuestionsToSave // Lưu dữ liệu câu hỏi hoàn chỉnh
+        questionsData: finalQuestionsToSave
     };
 
     quizzes.push(newQuiz);

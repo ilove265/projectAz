@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="quiz.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <title id="page-title-display">Bắt đầu Quiz</title>
+    <style>
+        /* Thêm style để hiển thị câu hỏi rõ ràng hơn */
+        .quiz-content-area {
+            width: 90%;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .quiz-header h1 {
+            color: #00bcd4;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        /* Styles cho Quiz tương tác */
+        .question-item {
+            border: 1px solid #f0f0f0;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            background: #fcfcfc;
+        }
+        .question-item h3 {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .option-label {
+            display: block;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .option-label:hover {
+            background: #e0f7fa;
+            border-color: #00bcd4;
+        }
+        .option-label input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        /* Result Styles */
+        .correct-answer-feedback {
+            background: #e8f5e9 !important; /* Green for correct */
+            border-color: #4caf50 !important;
+            font-weight: 600;
+        }
+        .wrong-answer-feedback {
+            background: #ffebee !important; /* Red for wrong */
+            border-color: #f44336 !important;
+            font-weight: 600;
+        }
+        .result-box {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            background: #fff3e0;
+            border: 2px dashed #ff9800;
+        }
+        .result-box h2 {
+            color: #ff9800;
+        }
+
+        /* Submit Button */
+        #submit-quiz-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        #submit-quiz-btn:hover:not(:disabled) {
+            background: #388e3c;
+        }
+        #submit-quiz-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="header bar">
+        <div class="logo-area" onclick="window.location.href='../index.html'" style="cursor: pointer;">
+            <img src="../img/Rei.webp" alt="logo" onerror="this.src='https://placehold.co/40x40'"> 
+            <h1>QuizzLab</h1>
+        </div>
+        <div class="acc">
+            <p>Tài khoản</p>
+        </div>
+    </div>
+    
+    <button class="back-home-minimal" onclick="window.location.href='quiz.html'">
+        &larr; Quay lại Quiz
+    </button>
+
+    <div class="quiz-content-area">
+        <div class="quiz-header">
+            <h1 id="quiz-title-display">Đang tải Quiz...</h1>
+            <p><span class="info-label">Chủ đề:</span> <span id="quiz-topic-display"></span></p>
+            <p><span class="info-label">Số câu:</span> <span id="quiz-count-display"></span></p>
+        </div>
+        <hr>
+        
+        <div id="result-display" style="display: none; margin-bottom: 20px;"></div>
+
+        <form id="quiz-form">
+            <div id="questions-area">
+                <p id="loading-message">Vui lòng chờ...</p>
+            </div>
+
+            <button type="submit" id="submit-quiz-btn" disabled>HOÀN THÀNH BÀI LÀM</button>
+        </form>
+
+    </div>
+
+    <script src="start-quiz.js"></script>
+</body>
+</html>
