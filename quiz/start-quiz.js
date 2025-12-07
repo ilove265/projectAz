@@ -1,19 +1,28 @@
-const QUIZZES_STORAGE_KEY = 'quizzlab_quizzes';
+const firebaseConfig = {
+    apiKey: "AIzaSyCmYBElBsb4bl8wR8_2Oct-auZTk4wgPyo",
+    authDomain: "projectaz-d4150.firebaseapp.com",
+    projectId: "projectaz-d4150",
+    storageBucket: "projectaz-d4150.firebasestorage.app",
+    messagingSenderId: "607007709132",
+    appId: "1:607007709132:web:c4b67bcdf245cf58e76f69"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+
+
 let currentQuizData = null;
 let quizSubmitted = false;
 let totalQuestions = 0;
 
 /* -------------------- Helpers -------------------- */
-function getQuizzes() {
-    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
-    return storedQuizzes ? JSON.parse(storedQuizzes) : [];
-}
-
 function getUrlParameter(name) {
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    name = name.replace(/[\\[]/, '\\\\[').replace(/[\\]]/, '\\\\]');
+    const regex = new RegExp('[\\\\?&]' + name + '=([^&#]*)');
     const results = regex.exec(location.search);
-    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\\+/g, ' '));
 }
 
 /* -------------------- Navigation / Sidebar -------------------- */
@@ -484,45 +493,51 @@ function showQuizNotAvailable(idOrMsg) {
     `;
 }
 
-function loadAndRenderQuiz() {
+// Hàm tải Quiz từ Firebase và hiển thị
+async function loadAndRenderQuiz() { // Thêm async
+    const quizId = getUrlParameter('id'); // ID từ Firebase là CHUỖI, không cần parseInt
+    
+    const titleDisplay = document.getElementById('quiz-title-display');
+    const questionsArea = document.getElementById('questions-area');
+    
+    if (!quizId) {
+        showQuizNotAvailable("Không có ID Quiz");
+        return;
+    }
+
     try {
-        const quizId = parseInt(getUrlParameter('id'));
-        const quizzes = getQuizzes() || [];
-
-        console.log('[start-quiz] loaded quizzes from storage:', quizzes);
-
-        const rawQuiz = quizzes.find(q => q.id === quizId);
-        if (!rawQuiz) {
-            console.error(`[start-quiz] Không tìm thấy quiz với id=${quizId}`);
+        // Lấy document trực tiếp bằng ID (chuỗi)
+        const doc = await db.collection("quizzes").doc(quizId).get();
+        
+        if (!doc.exists) {
+            // Không tìm thấy Quiz
             showQuizNotAvailable(quizId);
             return;
         }
 
-        const quiz = normalizeQuizData(rawQuiz);
+        const rawQuiz = { id: doc.id, ...doc.data() };
+        
+        // ... (phần còn lại của logic xử lý quiz data giữ nguyên) ...
+        const quiz = rawQuiz; // Dùng trực tiếp doc.data()
 
         if (!Array.isArray(quiz.questionsData) || quiz.questionsData.length === 0) {
-            console.warn('[start-quiz] quiz.questionsData trống hoặc không phải mảng:', quiz.questionsData);
-            showQuizNotAvailable(quizId);
+            // ...
             return;
         }
-
-        // Ensure each question has options array and type
-        quiz.questionsData = quiz.questionsData.map((q, idx) => {
-            return {
-                questionText: q?.questionText || `Câu ${idx + 1}`,
-                options: Array.isArray(q?.options) ? q.options : [],
-                correctAnswer: typeof q?.correctAnswer === 'number' ? q.correctAnswer : null,
-                optionFormat: q?.optionFormat || null,
-                type: q?.type || (Array.isArray(q?.options) && q.options.length === 2 ? 'true_false' : 'multiple_choice')
-            };
-        });
-
-        renderQuiz(quiz);
+        
+        // Gán dữ liệu cho biến toàn cục và Render
+        currentQuizData = quiz;
+        totalQuestions = quiz.questionsData.length;
+        renderQuiz(quiz); 
+        
+        // Ẩn thông báo loading
+        document.getElementById('loading-message')?.remove();
+        document.getElementById('submit-quiz-btn').disabled = false;
+        
     } catch (err) {
-        console.error('[start-quiz] Lỗi khi load quiz:', err);
-        showQuizNotAvailable('Lỗi nội bộ');
+        console.error('Lỗi khi tải Quiz từ Firebase:', err);
+        showQuizNotAvailable(quizId);
     }
 }
-
-/* -------------------- Init -------------------- */
+// Gọi hàm ngay khi trang được tải
 window.onload = loadAndRenderQuiz;

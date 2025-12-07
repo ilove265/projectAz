@@ -1,39 +1,42 @@
-const QUIZZES_STORAGE_KEY = 'quizzlab_quizzes';
 
-// 1. Dữ liệu mẫu ban đầu
-const defaultQuizzes = [
-    {
-        id: 1,
-        title: "Toán Học Cơ Bản",
-        topic: "Khoa học Tự nhiên",
-        questions: 5,
-        creator: "QuizzLab Admin",
-        link: "start-quiz.html?id=1"
-    },
-    {
-        id: 2,
-        title: "Lịch Sử Thế Giới",
-        topic: "Lịch Sử",
-        questions: 10,
-        creator: "QuizzLab Admin",
-        link: "start-quiz.html?id=2"
-    }
-];
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmYBElBsb4bl8wR8_2Oct-auZTk4wgPyo",
+    authDomain: "projectaz-d4150.firebaseapp.com",
+    projectId: "projectaz-d4150",
+    storageBucket: "projectaz-d4150.firebasestorage.app",
+    messagingSenderId: "607007709132",
+    appId: "1:607007709132:web:c4b67bcdf245cf58e76f69"
+  };
 
-// Hàm lấy danh sách Quiz từ localStorage
-function getQuizzes() {
-    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
-    if (storedQuizzes) {
-        return JSON.parse(storedQuizzes);
-    }
-    localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(defaultQuizzes));
-    return defaultQuizzes;
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+// 2. CÁC HÀM XỬ LÝ DATABASE (Bất đồng bộ)
+
+// Hàm lấy danh sách Quiz
+async function getQuizzesFromFirebase() {
+    // Đợi kết quả từ bộ sưu tập "quizzes"
+    const snapshot = await db.collection("quizzes").get();
+    // Chuyển đổi kết quả thành mảng JS, thêm trường 'id' lấy từ Firebase document ID
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// Hàm lưu danh sách Quiz vào localStorage
-function saveQuizzes(quizzes) {
-    localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
+// Hàm lưu Quiz
+async function saveQuizToFirebase(quizData) {
+    // Thêm document mới, Firebase tự động tạo ID
+    return await db.collection("quizzes").add(quizData);
 }
+
+// Hàm xóa Quiz
+async function deleteQuizFromFirebase(docId) {
+    await db.collection("quizzes").doc(docId).delete();
+}    
+
+    // const QUIZZES_STORAGE_KEY = 'quizzlab_quizzes';
+
+
+
 
 // 2. Hàm render một Quiz Card (CẬP NHẬT để thêm nút Xóa)
 function renderQuizCard(quiz) {
@@ -42,11 +45,11 @@ function renderQuizCard(quiz) {
     card.setAttribute('data-id', quiz.id);
 
     // Kiểm tra xem đây có phải là Quiz tự tạo hay không để thêm nút xóa
-    const isUserCreated = quiz.creator === "Người dùng (Tự tạo)";
+    const isUserCreated = quiz.creator === "Người dùng (Firebase)";
     let deleteButton = '';
     if (isUserCreated) {
         deleteButton = `
-            <button class="delete-quiz-btn" onclick="event.stopPropagation(); deleteQuiz(${quiz.id});" 
+            <button class="delete-quiz-btn" onclick="event.stopPropagation(); deleteQuiz('${quiz.id}');" 
                     style="background: #f44336; margin-left: 10px; padding: 8px 12px; border-radius: 8px; border: none; color: white; cursor: pointer; transition: background 0.3s;">
                 Xóa
             </button>
@@ -78,34 +81,67 @@ function renderQuizCard(quiz) {
 }
 
 // 3. Hàm hiển thị tất cả Quiz
-function loadQuizzes() {
+async function loadQuizzes() {
     const quizListContainer = document.getElementById('quiz-list');
-    quizListContainer.innerHTML = '';
-    document.getElementById('loading-text')?.remove();
-
-    const quizzes = getQuizzes();
     
-    if (quizzes.length === 0) {
-        quizListContainer.innerHTML = '<p style="color: #999;">Chưa có Quiz nào được tạo.</p>';
-        return;
-    }
+    // Hiển thị thông báo đang tải (quan trọng vì Firebase là bất đồng bộ)
+    quizListContainer.innerHTML = `
+        <div style="text-align: center; padding: 30px; color: #00bcd4;">
+            <p>Đang tải Quiz từ Cloud...</p>
+        </div>
+    `; 
 
-    quizzes.forEach(quiz => renderQuizCard(quiz));
+    try {
+        // Gọi hàm bất đồng bộ để lấy dữ liệu, dùng await để chờ
+        const quizzes = await getQuizzesFromFirebase();
+        
+        // Xóa thông báo loading và hiển thị Quiz
+        quizListContainer.innerHTML = ''; 
+        if (quizzes.length === 0) {
+            quizListContainer.innerHTML = '<p style="text-align: center;">Chưa có Quiz nào được tạo.</p>';
+            return;
+        }
+        
+        // Render từng thẻ Quiz (hàm renderQuizCard giữ nguyên)
+        quizzes.forEach(quiz => renderQuizCard(quiz)); 
+        
+    } catch (error) {
+        console.error("Lỗi khi tải Quiz từ Firebase:", error);
+        quizListContainer.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: red;">
+                <p>LỖI KẾT NỐI SERVER! Vui lòng kiểm tra lại cấu hình Firebase hoặc kết nối mạng.</p>
+            </div>
+        `;
+    }
 }
 
 // --- LOGIC XÓA QUIZ MỚI ---
-function deleteQuiz(id) {
-    if (!confirm("Bạn có chắc chắn muốn xóa Quiz này không? Dữ liệu sẽ bị mất vĩnh viễn.")) {
+async function deleteQuiz(quizId) { 
+    
+    if (!confirm("Bạn có chắc chắn muốn xóa Quiz này không? Dữ liệu sẽ mất vĩnh viễn và không thể khôi phục.")) {
         return;
     }
 
-    let quizzes = getQuizzes();
-    // Lọc ra Quiz có ID cần xóa
-    quizzes = quizzes.filter(q => q.id !== id);
-    
-    saveQuizzes(quizzes); // Lưu lại danh sách mới
-    loadQuizzes(); // Tải lại giao diện
-    alert("Quiz đã được xóa thành công!");
+    try {
+        // Tùy chọn: Vô hiệu hóa nút để tránh click nhiều lần
+        const deleteBtn = document.querySelector(`.quiz-card .delete-quiz-btn[onclick*="${quizId}"]`);
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Đang xóa...';
+        }
+
+        // Gọi hàm xóa trên Firebase 
+        await deleteQuizFromFirebase(quizId); 
+        
+        alert("Quiz đã được xóa thành công khỏi Cloud!");
+        
+        // Tải lại danh sách Quiz sau khi xóa
+        await loadQuizzes();
+        
+    } catch (error) {
+        console.error("Lỗi khi xóa Quiz:", error);
+        alert("Lỗi khi xóa Quiz: " + error.message);
+    }
 }
 
 
@@ -391,32 +427,35 @@ quizTextInput.addEventListener('input', updatePreview);
 /**
  * 8. Xử lý sự kiện Submit Form (Tạo Quiz)
  */
-form.addEventListener('submit', function(e) {
+form.addEventListener('submit', async function(e) { 
     e.preventDefault();
+    
+    const title = document.getElementById('quiz-title').value.trim();
+    const topic = document.getElementById('quiz-topic').value.trim();
+    const text = document.getElementById('quiz-text-input').value;
+    const errorMessage = document.getElementById('error-message');
 
-    const title = document.getElementById('quiz-title').value;
-    const topic = document.getElementById('quiz-topic').value;
-    const text = quizTextInput.value;
+    if (!title || !topic || !text) {
+        errorMessage.textContent = "Vui lòng điền đủ Tiêu đề, Chủ đề và Nội dung Quiz.";
+        errorMessage.style.display = 'block';
+        return;
+    }
     
     const allParsedQuestions = parseQuizText(text);
 
+    // Sử dụng logic lọc câu hỏi đã sửa ở các bước trước:
     const finalQuestionsToSave = (allParsedQuestions || []).filter(q => {
-        // Nếu là statements (dùng a) b) c)...) => chấp nhận >=2 phát biểu và ít nhất 1 phát biểu có isCorrect === true
-        if (q.type === 'statements_tf') {
-            return Array.isArray(q.options) && q.options.length >= 2 && q.options.some(opt => opt.isCorrect === true);
-        }
-        // True/False (2-option kiểu Đúng/Sai) => cần 2 option và có đáp án đúng
-        if (q.type === 'true_false') {
-            return Array.isArray(q.options) && q.options.length === 2 && q.correctAnswer !== null;
-        }
-        // Multiple choice (A. B. C.) => giữ điều kiện cũ nhưng an toàn hơn
-        if (q.optionFormat === 'letter_dot') {
-            return Array.isArray(q.options) && q.options.length >= 2 && q.correctAnswer !== null;
-        }
-        if (q.optionFormat === 'letter_paren') {
-            return Array.isArray(q.options) && q.options.length >= 2 && q.correctAnswer !== null;
-        }
-        return false;
+        // 1. Phải có định dạng đáp án (letter_dot, letter_paren, v.v.)
+        const hasFormat = q.optionFormat === 'letter_dot' || q.optionFormat === 'letter_paren';
+        
+        // 2. Phải là mảng đáp án và có TỐI THIỂU 2 đáp án (cho cả trắc nghiệm và Đúng/Sai)
+        const hasEnoughOptions = Array.isArray(q.options) && q.options.length >= 2;
+        
+        // 3. Phải có đáp án đúng đã được đánh dấu (*)
+        const hasCorrectAnswer = q.correctAnswer !== null;
+    
+        // Chỉ giữ lại câu hỏi nếu thỏa mãn cả 3 điều kiện
+        return hasFormat && hasEnoughOptions && hasCorrectAnswer;
     });
 
     if (finalQuestionsToSave.length === 0) {
@@ -427,26 +466,43 @@ form.addEventListener('submit', function(e) {
 
     errorMessage.style.display = 'none';
 
-    const quizzes = getQuizzes();
-    const newId = quizzes.length > 0 ? Math.max(...quizzes.map(q => q.id)) + 1 : 1;
+    // *** BỎ PHẦN TẠO ID VÀ GỌI getQuizzes() CŨ Ở ĐÂY ***
 
-    const newQuiz = {
-        id: newId,
+    const newQuizData = {
+        // KHÔNG CẦN TRƯỜNG ID, FIREBASE TỰ SINH
         title: title,
         topic: topic,
         questions: finalQuestionsToSave.length,
-        creator: "Người dùng (Tự tạo)",
-        link: `start-quiz.html?id=${newId}`, 
-        questionsData: finalQuestionsToSave
+        creator: "Người dùng (Firebase)",
+        questionsData: finalQuestionsToSave,
+        createdAt: new Date().toISOString()
     };
 
-    quizzes.push(newQuiz);
-    saveQuizzes(quizzes);
+    // Bắt đầu lưu lên Firebase
+    try {
+        document.querySelector('.submit-quiz-btn').disabled = true;
+        document.querySelector('.submit-quiz-btn').textContent = 'Đang lưu...';
 
-    alert(`Quiz "${title}" đã được tạo thành công với ${finalQuestionsToSave.length} câu hỏi!`);
+        // Gọi hàm lưu Quiz và đợi lấy về tham chiếu Document
+        const docRef = await saveQuizToFirebase(newQuizData); 
 
-    closeCreateQuizEditor();
-    loadQuizzes(); 
+        // Sau khi lưu thành công, cập nhật lại trường link với ID do Firebase tạo
+        const firebaseId = docRef.id;
+        await db.collection("quizzes").doc(firebaseId).update({
+            link: `start-quiz.html?id=${firebaseId}`
+        });
+
+        alert(`Quiz "${title}" đã được lưu lên Cloud thành công!`);
+        closeCreateQuizEditor();
+        loadQuizzes(); // Tải lại danh sách Quiz đã được lưu
+        
+    } catch (err) {
+        console.error("Lỗi khi lưu Quiz:", err);
+        alert("Lỗi khi lưu Quiz lên Firebase: " + err.message);
+    } finally {
+        document.querySelector('.submit-quiz-btn').disabled = false;
+        document.querySelector('.submit-quiz-btn').textContent = 'LƯU & XUẤT BẢN QUIZ';
+    }
 });
 
 
