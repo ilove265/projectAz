@@ -445,19 +445,34 @@ form.addEventListener('submit', async function(e) {
 
     // Sử dụng logic lọc câu hỏi đã sửa ở các bước trước:
     const finalQuestionsToSave = (allParsedQuestions || []).filter(q => {
-        // 1. Phải có định dạng đáp án (letter_dot, letter_paren, v.v.)
+        // 1. Phải có định dạng đáp án và tối thiểu 2 lựa chọn
         const hasFormat = q.optionFormat === 'letter_dot' || q.optionFormat === 'letter_paren';
-        
-        // 2. Phải là mảng đáp án và có TỐI THIỂU 2 đáp án (cho cả trắc nghiệm và Đúng/Sai)
         const hasEnoughOptions = Array.isArray(q.options) && q.options.length >= 2;
         
-        // 3. Phải có đáp án đúng đã được đánh dấu (*)
-        const hasCorrectAnswer = q.correctAnswer !== null;
-    
-        // Chỉ giữ lại câu hỏi nếu thỏa mãn cả 3 điều kiện
-        return hasFormat && hasEnoughOptions && hasCorrectAnswer;
-    });
+        if (!hasFormat || !hasEnoughOptions) {
+            return false;
+        }
 
+        // 2. LOGIC KIỂM TRA ĐÁP ÁN ĐÚNG
+        
+        let hasCorrectAnswer = false;
+
+        // KIỂM TRA A. B. C. D. (Dùng trường correctAnswer)
+        const isMultipleChoice = q.optionFormat === 'letter_dot';
+        if (isMultipleChoice && q.correctAnswer !== null) {
+            hasCorrectAnswer = true;
+        }
+
+        // KIỂM TRA a) b) (Dùng cờ isCorrect trong mảng options)
+        const isStatementType = q.optionFormat === 'letter_paren';
+        if (isStatementType) {
+            // Kiểm tra xem có TỐI THIỂU một đáp án được đánh dấu là đúng (*)
+            hasCorrectAnswer = q.options.some(option => option.isCorrect);
+        }
+        
+        // Chỉ giữ lại câu hỏi nếu thỏa mãn tất cả điều kiện
+        return hasCorrectAnswer;
+    });
     if (finalQuestionsToSave.length === 0) {
         errorMessage.textContent = "Không tìm thấy câu hỏi hoàn chỉnh nào. Quiz phải có Tiêu đề, Đáp án (A. B. C. D. hoặc a) b)), và Đáp án Đúng (dấu *).";
         errorMessage.style.display = 'block';
