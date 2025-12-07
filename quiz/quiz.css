@@ -154,6 +154,7 @@ hr {
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  border-left: 5px solid #00bcd4;
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
   display: flex;
@@ -164,7 +165,7 @@ hr {
 .quiz-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 188, 212, 0.3);
-  border-left: 5px solid #00bcd4;
+
 }
 
 .quiz-card h3 {
@@ -462,4 +463,115 @@ hr {
       top: 80px;
       left: 20px;
   }
+}
+.tf-statement {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Khối nội dung phát biểu (a) b) c) d) ) */
+.tf-statement .statement-text {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  font-weight: 600;
+  color: #333;
+  margin-right: 12px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  border-right: 2px solid #e6f7fb; /* đường phân cách */
+}
+
+/* .tf-statement .statement-text:hover {
+  border-color: #00bcd4;
+  background: #f0fbfd;
+  transform: translateY(-2px);
+} */
+
+.tf-statement .statement-text.selected {
+  background: #e0f7fa;
+  border-color: #00bcd4;
+  box-shadow: 0 6px 18px rgba(0,188,212,0.08);
+  color: #004d56;
+}
+
+/* Nút Đúng/Sai */
+.tf-statement .tf-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;      /* nhỏ hơn */
+  padding: 8px 10px;    /* nhỏ hơn */
+  border-radius: 8px;
+  border: 1px solid #dbeff4;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 600;
+  color: #007a9a;       /* xanh nước biển */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.tf-statement .tf-label:hover {
+  transform: translateY(-2px);
+  border-color: #00bcd4;
+  background: #f0fbfd;
+}
+
+.tf-statement .tf-label input {
+  display: none;
+}
+
+/* Khi radio được chọn: đổi màu nền và viền */
+.tf-statement .tf-label.selected-true {
+  background: linear-gradient(180deg,#e1f6fb,#d6f0fa);
+  border-color: #00bcd4;
+  color: #005f73;
+  box-shadow: 0 4px 12px rgba(0,188,212,0.12);
+}
+
+.tf-statement .tf-label.selected-false {
+  background: linear-gradient(180deg,#fff5f5,#ffecec);
+  border-color: #f44336;
+  color: #b71c1c;
+  box-shadow: 0 4px 12px rgba(244,67,54,0.12);
+}
+
+/* Sau khi nộp bài: highlight đáp án đúng/ sai */
+.correct-answer-feedback.tf-label {
+  background: linear-gradient(180deg,#e1f6fb,#d6f0fa) !important;
+  border-color: #00bcd4 !important;
+  color: #005f73 !important;
+}
+.wrong-answer-feedback.tf-label {
+  background: linear-gradient(180deg,#fff5f5,#ffcdd2) !important;
+  border-color: #f44336 !important;
+  color: #b71c1c !important;
+}
+
+/* Responsive: thu nhỏ nút trên màn hình nhỏ */
+@media (max-width: 600px) {
+  .tf-statement .tf-label {
+    min-width: 72px;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+  .tf-statement .statement-text {
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Khi chọn 1 option trong nhóm trắc nghiệm, tô màu cả khối giống hover */
+.option-label.selected {
+  background: #e0f7fa;        /* cùng tông với hover */
+  border-color: #00bcd4;      /* cùng màu viền hover */
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 188, 212, 0.12);
+  font-weight: 700;
+  color: #004d56;
 }

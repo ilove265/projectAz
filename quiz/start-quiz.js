@@ -3,6 +3,7 @@ let currentQuizData = null;
 let quizSubmitted = false;
 let totalQuestions = 0;
 
+/* -------------------- Helpers -------------------- */
 function getQuizzes() {
     const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
     return storedQuizzes ? JSON.parse(storedQuizzes) : [];
@@ -15,42 +16,61 @@ function getUrlParameter(name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-/**
- * 1. Logic chuyển câu hỏi khi bấm nút Sidebar
- */
-function jumpToQuestion(questionIndex) {
-    const targetId = `question-${questionIndex}`;
-    const targetElement = document.getElementById(targetId);
-    
-    if (targetElement) {
+/* -------------------- Navigation / Sidebar -------------------- */
+function jumpToQuestionByFlatIndex(flatIndex) {
+    const flattened = window.__flattenedQuiz || [];
+    const f = flattened[flatIndex];
+    if (!f) return;
+    const target = document.getElementById(`question-${f.qIndex}`);
+    if (target) {
+        // Scroll to the question container; if it's a statement, we still scroll to the parent question
         window.scrollTo({
-            top: targetElement.offsetTop - 100, 
+            top: target.offsetTop - 100,
             behavior: 'smooth'
         });
     }
 }
 
-/**
- * 2. Logic tạo các nút Sidebar
- */
 function renderSidebarButtons() {
     const sidebarList = document.getElementById('question-button-list');
     sidebarList.innerHTML = '';
-    
+
+    // Số câu thực tế (mỗi câu 1 nút)
+    const questionCount = (currentQuizData || []).length;
+    if (questionCount === 0) return;
+
     let groupNumber = 1;
     let groupDiv = document.createElement('div');
     groupDiv.classList.add('question-buttons-group');
-    
-    if (totalQuestions > 0) {
-        let groupHeader = document.createElement('h3');
-        groupHeader.textContent = `Nhóm ${groupNumber}`;
-        sidebarList.appendChild(groupHeader);
-        sidebarList.appendChild(groupDiv);
-    }
 
+    // Thêm tiêu đề nhóm đầu nếu có câu
+    let groupHeader = document.createElement('h3');
+    groupHeader.textContent = `Nhóm ${groupNumber}`;
+    sidebarList.appendChild(groupHeader);
+    sidebarList.appendChild(groupDiv);
 
-    for (let i = 0; i < totalQuestions; i++) {
-        if (i > 0 && i % 10 === 0) {
+    for (let i = 0; i < questionCount; i++) {
+        // Tạo nút cho Câu i (hiển thị số thứ tự)
+        const btn = document.createElement('a');
+        btn.classList.add('question-button');
+        btn.textContent = String(i + 1).padStart(2, '0');
+        btn.setAttribute('data-q-index', i);
+
+        // Khi click: scroll tới phần tử question-{i}
+        btn.addEventListener('click', function () {
+            const target = document.getElementById(`question-${i}`);
+            if (target) {
+                window.scrollTo({
+                    top: target.offsetTop - 100,
+                    behavior: 'smooth'
+                });
+            }
+        });
+
+        groupDiv.appendChild(btn);
+
+        // Chia nhóm mỗi 10 câu (giữ hành vi cũ)
+        if ((i + 1) % 10 === 0 && i + 1 < questionCount) {
             groupNumber++;
             groupDiv = document.createElement('div');
             groupDiv.classList.add('question-buttons-group');
@@ -59,55 +79,149 @@ function renderSidebarButtons() {
             sidebarList.appendChild(groupHeader);
             sidebarList.appendChild(groupDiv);
         }
-
-        const btn = document.createElement('a');
-        btn.classList.add('question-button');
-        btn.textContent = String(i + 1).padStart(2, '0');
-        btn.setAttribute('data-index', i);
-        btn.setAttribute('onclick', `jumpToQuestion(${i})`);
-        
-        groupDiv.appendChild(btn);
     }
+
+    // Sau khi tạo, cập nhật trạng thái ban đầu
+    updateSidebarStatusPerQuestion();
 }
 
-/**
- * 3. Kiểm tra hoàn thành và cập nhật trạng thái Sidebar 
- */
+/* -------------------- Completion check -------------------- */
 function checkCompletion() {
     if (quizSubmitted) return;
-
+  
     const form = document.getElementById('quiz-form');
     const sidebarButtons = document.querySelectorAll('.question-button');
-    
-    let answeredCount = 0;
-    
-    for (let i = 0; i < totalQuestions; i++) {
-        const questionName = `q${i}`;
-        const selectedOption = form.querySelector(`input[name="${questionName}"]:checked`);
-        const sidebarBtn = sidebarButtons[i];
-
-        if (selectedOption) {
-            answeredCount++;
-            if (sidebarBtn) sidebarBtn.classList.add('answered'); // Đã sửa
-        } else {
-            if (sidebarBtn) sidebarBtn.classList.remove('answered'); // Đã sửa
+    const flattened = window.__flattenedQuiz || [];
+    const totalDisplayQuestions = window.__totalDisplayQuestions || (currentQuizData ? currentQuizData.length : 0);
+  
+    // Đếm số câu đã trả lời (ít nhất 1 lựa chọn trong câu)
+    let answeredQuestions = 0;
+  
+    for (let qIndex = 0; qIndex < (currentQuizData || []).length; qIndex++) {
+      const q = currentQuizData[qIndex];
+      let isAnswered = false;
+  
+      if (q.type === 'statements_tf') {
+        // Có ít nhất một phát biểu đã chọn Đúng/Sai
+        const relatedFlatIndices = [];
+        flattened.forEach((f, idx) => { if (f.qIndex === qIndex) relatedFlatIndices.push(idx); });
+        for (const fi of relatedFlatIndices) {
+          if (form.querySelector(`input[name="item${fi}"]:checked`)) {
+            isAnswered = true;
+            break;
+          }
         }
+      } else {
+        // Trắc nghiệm A/B/C/D (name="q{index}")
+        const selected = form.querySelector(`input[name="q${qIndex}"]:checked`);
+        if (selected) isAnswered = true;
+      }
+  
+      if (isAnswered) {
+        answeredQuestions++;
+        const btn = sidebarButtons[qIndex];
+        btn?.classList.add('answered');
+      } else {
+        const btn = sidebarButtons[qIndex];
+        btn?.classList.remove('answered');
+      }
     }
-    
-    // Cập nhật text của nút submit (ở header)
+  
+    // Cập nhật nút nộp theo số câu (không phải flattened)
     const topSubmitBtn = document.getElementById('top-submit-btn');
     if (topSubmitBtn) {
-         topSubmitBtn.textContent = `HOÀN THÀNH BÀI LÀM (${answeredCount}/${totalQuestions})`;
+      topSubmitBtn.textContent = `HOÀN THÀNH BÀI LÀM (${answeredQuestions}/${totalDisplayQuestions})`;
+    }
+  }
+
+function updateSidebarStatusPerQuestion() {
+    const sidebarButtons = document.querySelectorAll('.question-button');
+    const flattened = window.__flattenedQuiz || [];
+    const form = document.getElementById('quiz-form');
+
+    // Với mỗi câu (index tương ứng với nút), xác định các flattened item thuộc câu đó
+    for (let qIndex = 0; qIndex < (currentQuizData || []).length; qIndex++) {
+        const btn = sidebarButtons[qIndex];
+        if (!btn) continue;
+
+        // Tìm tất cả flattened indices thuộc câu qIndex
+        const relatedFlatIndices = [];
+        flattened.forEach((f, idx) => {
+            if (f.qIndex === qIndex) relatedFlatIndices.push(idx);
+        });
+
+        // Nếu không có flattened item (câu rỗng) => remove trạng thái
+        if (relatedFlatIndices.length === 0) {
+            btn.classList.remove('answered', 'active', 'correct', 'wrong');
+            continue;
+        }
+
+        // Kiểm tra: có bao nhiêu item đã được chọn, có bao nhiêu chưa
+        let answered = 0;
+        relatedFlatIndices.forEach(fi => {
+            const sel = form.querySelector(`input[name="item${fi}"]:checked`);
+            if (sel) answered++;
+        });
+
+        // Quy tắc hiển thị:
+        // - Nếu chưa chọn item nào trong câu => remove 'answered'
+        // - Nếu đã chọn ít nhất 1 => add 'answered'
+        // - Sau khi nộp (quizSubmitted === true), trạng thái 'correct'/'wrong' sẽ được set trong handleSubmit
+        if (!quizSubmitted) {
+            if (answered === 0) {
+                btn.classList.remove('answered');
+            } else {
+                btn.classList.add('answered');
+            }
+            // Xóa các trạng thái chấm điểm cũ nếu có
+            btn.classList.remove('correct', 'wrong');
+        } else {
+            // Nếu đã nộp, trạng thái correct/wrong đã được gán trong handleSubmit cho từng flattened item.
+            // Ở đây ta tổng hợp: nếu tất cả flattened items của câu đều correct => mark correct,
+            // nếu có ít nhất 1 wrong => mark wrong, nếu none answered => leave neutral.
+            let allCorrect = true;
+            let anyWrong = false;
+            relatedFlatIndices.forEach(fi => {
+                const sb = document.querySelectorAll('.question-button')[fi]; // not used; we check classes on sidebar per-item not present
+                // Instead, check DOM: after submit, handleSubmit sets classes on sidebarButtons[flatIndex]
+                const perItemBtn = document.querySelectorAll('.question-button')[fi];
+                if (perItemBtn) {
+                    if (perItemBtn.classList.contains('wrong')) anyWrong = true;
+                    if (!perItemBtn.classList.contains('correct')) allCorrect = false;
+                } else {
+                    // fallback: if no per-item info, use answered count
+                    const sel = form.querySelector(`input[name="item${fi}"]:checked`);
+                    if (!sel) allCorrect = false;
+                }
+            });
+
+            btn.classList.remove('answered');
+            btn.classList.remove('correct', 'wrong');
+            if (anyWrong) btn.classList.add('wrong');
+            else if (allCorrect && relatedFlatIndices.length > 0) btn.classList.add('correct');
+        }
     }
 }
 
-/**
- * 4. Hiển thị Quiz lên giao diện 
- */
+/* -------------------- Render Quiz -------------------- */
 function renderQuiz(quiz) {
     currentQuizData = quiz.questionsData;
-    totalQuestions = currentQuizData.length;
-    
+    // Build flattened list: each statement becomes 1 item, each normal question becomes 1 item
+    const flattened = [];
+    currentQuizData.forEach((q, qIndex) => {
+        if (q.type === 'statements_tf') {
+            q.options.forEach((opt, sIndex) => {
+                flattened.push({ qIndex, type: 'statement', stmtIndex: sIndex });
+            });
+        } else {
+            flattened.push({ qIndex, type: 'question' });
+        }
+    });
+
+
+    window.__flattenedQuiz = flattened;
+    totalQuestions = flattened.length;
+
     document.getElementById('quiz-title-display').textContent = quiz.title;
     document.getElementById('page-title-display').textContent = `Bắt đầu Quiz - ${quiz.title}`;
     document.getElementById('quiz-topic-display').textContent = quiz.topic;
@@ -115,8 +229,8 @@ function renderQuiz(quiz) {
 
     const questionsArea = document.getElementById('questions-area');
     questionsArea.innerHTML = '';
-    
-    // --- Bổ sung nút Submit vào Header ---
+
+    // Top submit button
     const submitArea = document.getElementById('submit-button-area');
     submitArea.innerHTML = `
         <button type="button" id="top-submit-btn">
@@ -124,160 +238,291 @@ function renderQuiz(quiz) {
         </button>
     `;
     document.getElementById('top-submit-btn').addEventListener('click', handleSubmit);
-    // -------------------------------------
 
+    // Render each question block
     currentQuizData.forEach((q, qIndex) => {
         const item = document.createElement('div');
         item.classList.add('question-item');
-        item.id = `question-${qIndex}`; 
+        item.id = `question-${qIndex}`;
         item.setAttribute('data-q-index', qIndex);
 
-        let questionHtml = `<h3><span style="color:#00bcd4;">Câu ${qIndex + 1}:</span> ${q.questionText}</h3>`;
-        let optionsHtml = '';
-        const questionName = `q${qIndex}`;
+        let html = `<h3><span style="color:#00bcd4;">Câu ${qIndex + 1}:</span> ${q.questionText}</h3>`;
 
-        q.options.forEach((option, oIndex) => {
-            const prefix = option.prefix + (q.optionFormat === 'letter_dot' ? '.' : ')');
-            
-            optionsHtml += `
-                <label class="option-label" for="${questionName}-${oIndex}">
-                    <input type="radio" 
-                           id="${questionName}-${oIndex}" 
-                           name="${questionName}" 
-                           value="${oIndex}" 
-                           onclick="checkCompletion()">
-                    <span style="font-weight: 600; color: #333;">${prefix}</span> 
-                    ${option.content}
-                </label>
-            `;
-        });
+        if (q.type === 'statements_tf') {
+            // Each option is a statement with two radio buttons (Đúng / Sai)
+            q.options.forEach((opt, sIndex) => {
+                const flatIndex = window.__flattenedQuiz.findIndex(f => f.qIndex === qIndex && f.type === 'statement' && f.stmtIndex === sIndex);
+                const inputName = `item${flatIndex}`;
+                html += `
+                    <div class="tf-statement" data-flat-index="${flatIndex}">
+                        <div class="statement-text">
+                                ${opt.prefix}) ${opt.content}
+                            </div>
+                        <div class="tf-controls">
+                            <label class="tf-label" data-value="true" for="${inputName}-true-${flatIndex}">
+                                <input type="radio" id="${inputName}-true-${flatIndex}" name="${inputName}" value="true" onclick="onTFSelect(${flatIndex}, true)">
+                                Đúng
+                            </label>
+                            <label class="tf-label" data-value="false" for="${inputName}-false-${flatIndex}">
+                                <input type="radio" id="${inputName}-false-${flatIndex}" name="${inputName}" value="false" onclick="onTFSelect(${flatIndex}, false)">
+                                Sai
+                            </label>
+                        </div>
+                    </div>
 
-        item.innerHTML = questionHtml + optionsHtml;
+                `;
+            });
+        } else {
+            // Multiple choice or true_false (2-option) — render as a group of radios
+            const questionName = `q${qIndex}`;
+            q.options.forEach((option, oIndex) => {
+                const prefix = (option.prefix || '') + (q.optionFormat === 'letter_dot' ? '.' : ')');
+                html += `
+                    <label class="option-label" for="${questionName}-${oIndex}">
+                        <input type="radio"
+                               id="${questionName}-${oIndex}"
+                               name="${questionName}"
+                               value="${oIndex}"
+                               onclick="checkCompletion()">
+                        <span style="font-weight: 600; color: #333;">${prefix}</span>
+                        ${option.content}
+                    </label>
+                `;
+            });
+        }
+
+        item.innerHTML = html;
         questionsArea.appendChild(item);
     });
-
+    bindOptionSelection();
     renderSidebarButtons();
     document.getElementById('quiz-form').addEventListener('change', checkCompletion);
-    checkCompletion(); 
+    checkCompletion();
+}
+function bindOptionSelection() {
+    // tất cả label dạng .option-label chứa input radio
+    document.querySelectorAll('.question-item').forEach(questionEl => {
+      // trong mỗi câu, lắng nghe sự kiện change trên form (delegation)
+      questionEl.addEventListener('change', function (e) {
+        const target = e.target;
+        if (!target || target.type !== 'radio') return;
+  
+        // Nếu radio thuộc nhóm q{index} (ví dụ name="q0"), tìm tất cả label trong câu đó
+        const labels = questionEl.querySelectorAll('.option-label');
+  
+        // Xóa class selected ở tất cả label trong câu
+        labels.forEach(lbl => lbl.classList.remove('selected'));
+  
+        // Tìm label chứa input đã chọn và thêm class selected
+        const chosenLabel = target.closest('label');
+        if (chosenLabel && chosenLabel.classList.contains('option-label')) {
+          chosenLabel.classList.add('selected');
+        }
+      });
+    });
+  }
+  
+/* -------------------- TF UI helper -------------------- */
+function onTFSelect(flatIndex, valueTrue) {
+    const container = document.querySelector(`.tf-statement[data-flat-index="${flatIndex}"]`);
+    if (!container) return;
+
+    container.querySelectorAll('.tf-label').forEach(lbl => {
+        lbl.classList.remove('selected-true', 'selected-false');
+    });
+
+    const targetLabel = container.querySelector(`.tf-label[data-value="${valueTrue ? 'true' : 'false'}"]`);
+    if (targetLabel) {
+        targetLabel.classList.add(valueTrue ? 'selected-true' : 'selected-false');
+    }
+
+    checkCompletion();
 }
 
-/**
- * 5. Xử lý khi nộp bài
- */
+/* -------------------- Submit & Scoring -------------------- */
 function handleSubmit(event) {
-    // Luôn kiểm tra để tránh lỗi nếu event là undefined
-    if (event && event.preventDefault) event.preventDefault(); 
-    
-    if (quizSubmitted) return; 
+    if (event && event.preventDefault) event.preventDefault();
+    if (quizSubmitted) return;
 
     quizSubmitted = true;
     const form = document.getElementById('quiz-form');
     let score = 0;
-    
+
     const questionsArea = document.getElementById('questions-area');
     const resultDisplay = document.getElementById('result-display');
     const sidebarButtons = document.querySelectorAll('.question-button');
     const topSubmitBtn = document.getElementById('top-submit-btn');
 
-    // Vô hiệu hóa input và nút submit
-    topSubmitBtn.disabled = true;
-    topSubmitBtn.textContent = 'Đã nộp bài!';
-    questionsArea.querySelectorAll('input[type="radio"]').forEach(input => input.disabled = true);
-    
-    // Duyệt qua từng câu hỏi
-    currentQuizData.forEach((q, qIndex) => {
-        const questionElement = questionsArea.querySelector(`[data-q-index="${qIndex}"]`);
-        const questionName = `q${qIndex}`;
-        const selectedOptionInput = form.querySelector(`input[name="${questionName}"]:checked`);
-        const selectedAnswerIndex = selectedOptionInput ? parseInt(selectedOptionInput.value) : -1;
-        
-        const sidebarBtn = sidebarButtons[qIndex];
-        
-        // --- Đã sửa: Thay thế Optional Chaining bằng If Block ---
+    // Disable inputs and update button
+    if (topSubmitBtn) {
+        topSubmitBtn.disabled = true;
+        topSubmitBtn.textContent = 'Đã nộp bài!';
+    }
+    questionsArea.querySelectorAll('input').forEach(input => input.disabled = true);
+
+    const flattened = window.__flattenedQuiz || [];
+
+    for (let i = 0; i < flattened.length; i++) {
+        const f = flattened[i];
+        const sidebarBtn = sidebarButtons[i];
         if (sidebarBtn) {
             sidebarBtn.classList.remove('answered');
-            sidebarBtn.removeAttribute('onclick'); 
+            sidebarBtn.removeAttribute('onclick');
         }
-        // --------------------------------------------------------
 
-        // Xóa tất cả các lớp feedback cũ
-        questionElement.querySelectorAll('.option-label').forEach(label => {
-            label.classList.remove('correct-answer-feedback', 'wrong-answer-feedback');
-        });
+        if (f.type === 'statement') {
+            const q = currentQuizData[f.qIndex];
+            const stmt = q.options[f.stmtIndex];
+            const itemName = `item${i}`;
+            const selected = form.querySelector(`input[name="${itemName}"]:checked`);
+            const selectedVal = selected ? (selected.value === 'true') : null;
 
-        // Tính điểm và xử lý đáp án
-        if (selectedAnswerIndex === q.correctAnswer) {
-            score++;
-            if (sidebarBtn) sidebarBtn.classList.add('correct'); // Đã sửa
-        } else if (selectedAnswerIndex !== -1) {
-            if (sidebarBtn) sidebarBtn.classList.add('wrong'); // Đã sửa
+            // Scoring
+            if (selectedVal === stmt.isCorrect) {
+                score++;
+                if (sidebarBtn) sidebarBtn.classList.add('correct');
+            } else if (selectedVal === null) {
+                if (sidebarBtn) sidebarBtn.style.backgroundColor = '#ffcc80';
+            } else {
+                if (sidebarBtn) sidebarBtn.classList.add('wrong');
+            }
+
+            // Highlight labels
+            const container = document.querySelector(`.tf-statement[data-flat-index="${i}"]`);
+            if (container) {
+                const trueLabel = container.querySelector('.tf-label[data-value="true"]');
+                const falseLabel = container.querySelector('.tf-label[data-value="false"]');
+
+                if (stmt.isCorrect === true) {
+                    trueLabel?.classList.add('correct-answer-feedback');
+                } else {
+                    falseLabel?.classList.add('correct-answer-feedback');
+                }
+
+                if (selectedVal !== null && selectedVal !== stmt.isCorrect) {
+                    const chosen = container.querySelector(`.tf-label[data-value="${selectedVal ? 'true' : 'false'}"]`);
+                    chosen?.classList.add('wrong-answer-feedback');
+                }
+            }
         } else {
-             // Chưa trả lời
-             if (sidebarBtn) sidebarBtn.style.backgroundColor = '#ffcc80'; // Đã sửa
+            // multiple choice / true_false
+            const q = currentQuizData[f.qIndex];
+            const questionElement = document.getElementById(`question-${f.qIndex}`);
+            const questionName = `q${f.qIndex}`;
+            const selectedInput = form.querySelector(`input[name="${questionName}"]:checked`);
+            const selectedIndex = selectedInput ? parseInt(selectedInput.value) : -1;
+
+            if (selectedIndex === q.correctAnswer) {
+                score++;
+                if (sidebarBtn) sidebarBtn.classList.add('correct');
+            } else if (selectedIndex !== -1) {
+                if (sidebarBtn) sidebarBtn.classList.add('wrong');
+            } else {
+                if (sidebarBtn) sidebarBtn.style.backgroundColor = '#ffcc80';
+            }
+
+            q.options.forEach((option, oIndex) => {
+                const optionLabel = questionElement.querySelector(`label[for="${questionName}-${oIndex}"]`);
+                if (!optionLabel) return;
+                if (oIndex === q.correctAnswer) {
+                    optionLabel.classList.add('correct-answer-feedback');
+                }
+                if (selectedIndex !== -1 && oIndex === selectedIndex && selectedIndex !== q.correctAnswer) {
+                    optionLabel.classList.add('wrong-answer-feedback');
+                }
+            });
         }
+    }
 
-        q.options.forEach((option, oIndex) => {
-            const optionLabel = questionElement.querySelector(`label[for="${questionName}-${oIndex}"]`);
-            
-            if (oIndex === q.correctAnswer) {
-                // Đánh dấu đáp án đúng
-                optionLabel.classList.add('correct-answer-feedback');
-            }
-
-            if (selectedAnswerIndex !== -1 && oIndex === selectedAnswerIndex && selectedAnswerIndex !== q.correctAnswer) {
-                // Đánh dấu đáp án SAI của người dùng
-                optionLabel.classList.add('wrong-answer-feedback');
-            }
-        });
-    });
-
-    // Hiển thị kết quả chung
+    // Show result
     resultDisplay.style.display = 'block';
     resultDisplay.innerHTML = `
         <div class="result-box">
             <h2>🎉 Kết Quả Bài Quiz 🎉</h2>
             <p style="font-size: 1.5rem; font-weight: 700; color: ${score === totalQuestions ? '#4caf50' : '#ff9800'};">
-                Bạn đã đạt ${score} / ${totalQuestions} câu đúng!
+                Bạn đã đạt ${score} / ${totalQuestions} điểm!
             </p>
             <p style="color: #999; margin-top: 10px;">Các đáp án đúng đã được đánh dấu màu xanh lá.</p>
         </div>
     `;
-    
     resultDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* -------------------- Load & Normalize -------------------- */
+function normalizeQuizData(quiz) {
+    if (quiz && Array.isArray(quiz.questionsData)) return quiz;
 
-function loadAndRenderQuiz() {
-    const quizId = parseInt(getUrlParameter('id'));
-    
-    const quizzes = getQuizzes();
-    
-    const quiz = quizzes.find(q => q.id === quizId);
-    
-    const titleDisplay = document.getElementById('quiz-title-display');
-    const questionsArea = document.getElementById('questions-area');
-
-    if (!quiz || !quiz.questionsData || quiz.questionsData.length === 0) {
-        titleDisplay.textContent = "Lỗi: Quiz không khả dụng";
-        document.getElementById('loading-message')?.remove();
-        
-        document.getElementById('quiz-topic-display').textContent = "---";
-        document.getElementById('quiz-count-display').textContent = "0";
-
-        questionsArea.innerHTML = `
-            <div style="padding: 20px; text-align: center; border: 1px dashed #f44336; border-radius: 10px; margin-top: 30px;">
-                <p style="color: #d32f2f; font-weight: 600;">
-                    Không tìm thấy dữ liệu câu hỏi cho Quiz này (ID: ${quizId}).
-                </p>
-                <p style="color: #666; margin-top: 10px;">
-                    *Vui lòng sử dụng tính năng "Tạo Quiz" để tạo Quiz mới và kiểm tra. Các Quiz mẫu (ID 1, 2) chỉ là giữ chỗ.*
-                </p>
-            </div>
-        `;
-        return;
+    const normalized = Object.assign({}, quiz);
+    if (Array.isArray(quiz.questions)) {
+        normalized.questionsData = quiz.questions;
+    } else if (quiz.questions && typeof quiz.questions === 'object') {
+        normalized.questionsData = Object.values(quiz.questions);
+    } else {
+        normalized.questionsData = [];
     }
-
-    renderQuiz(quiz);
+    return normalized;
 }
 
+function showQuizNotAvailable(idOrMsg) {
+    const titleDisplay = document.getElementById('quiz-title-display');
+    const questionsArea = document.getElementById('questions-area');
+    titleDisplay.textContent = "Lỗi: Quiz không khả dụng";
+    document.getElementById('loading-message')?.remove();
+
+    document.getElementById('quiz-topic-display').textContent = "---";
+    document.getElementById('quiz-count-display').textContent = "0";
+
+    questionsArea.innerHTML = `
+        <div style="padding: 20px; text-align: center; border: 1px dashed #f44336; border-radius: 10px; margin-top: 30px;">
+            <p style="color: #d32f2f; font-weight: 600;">
+                Không tìm thấy dữ liệu câu hỏi cho Quiz này (ID: ${idOrMsg}).
+            </p>
+            <p style="color: #666; margin-top: 10px;">
+                *Kiểm tra localStorage key "quizzlab_quizzes" hoặc thử tạo lại quiz.* 
+            </p>
+        </div>
+    `;
+}
+
+function loadAndRenderQuiz() {
+    try {
+        const quizId = parseInt(getUrlParameter('id'));
+        const quizzes = getQuizzes() || [];
+
+        console.log('[start-quiz] loaded quizzes from storage:', quizzes);
+
+        const rawQuiz = quizzes.find(q => q.id === quizId);
+        if (!rawQuiz) {
+            console.error(`[start-quiz] Không tìm thấy quiz với id=${quizId}`);
+            showQuizNotAvailable(quizId);
+            return;
+        }
+
+        const quiz = normalizeQuizData(rawQuiz);
+
+        if (!Array.isArray(quiz.questionsData) || quiz.questionsData.length === 0) {
+            console.warn('[start-quiz] quiz.questionsData trống hoặc không phải mảng:', quiz.questionsData);
+            showQuizNotAvailable(quizId);
+            return;
+        }
+
+        // Ensure each question has options array and type
+        quiz.questionsData = quiz.questionsData.map((q, idx) => {
+            return {
+                questionText: q?.questionText || `Câu ${idx + 1}`,
+                options: Array.isArray(q?.options) ? q.options : [],
+                correctAnswer: typeof q?.correctAnswer === 'number' ? q.correctAnswer : null,
+                optionFormat: q?.optionFormat || null,
+                type: q?.type || (Array.isArray(q?.options) && q.options.length === 2 ? 'true_false' : 'multiple_choice')
+            };
+        });
+
+        renderQuiz(quiz);
+    } catch (err) {
+        console.error('[start-quiz] Lỗi khi load quiz:', err);
+        showQuizNotAvailable('Lỗi nội bộ');
+    }
+}
+
+/* -------------------- Init -------------------- */
 window.onload = loadAndRenderQuiz;
